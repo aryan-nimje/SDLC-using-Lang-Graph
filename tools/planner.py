@@ -1,4 +1,16 @@
 from langchain_core.tools import tool
+from pathlib import Path
+import os
+from dotenv import load_dotenv
+load_dotenv()
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model = "gpt-4.1-mini",
+    temperature = 0.8
+)
+
+PLAN_PATH = Path("workspace/plan.md")
 
 @tool
 def append(query: str):
@@ -12,11 +24,16 @@ def append(query: str):
     Returns:
         confirmation that the new query was succesfully appended onto plan.
     """
-    
+    if not PLAN_PATH.exists():
+        return "plan.md does not exist, use create to initialize plan.md"
+    with open(PLAN_PATH, "a") as f:
+        f.write("\n\n")
+        f.write(query)
+    return "query appended succesfully/"
 
 @tool
 def create(text:str):
-    """Creates a new project planning document (plan.txt)
+    """Creates a new project planning document (plan.md)
 
     Use this tool only when no plan exists.
     This tool initializes the project planning document that all later SDLC agents refer to.
@@ -27,6 +44,12 @@ def create(text:str):
     Returns:
         confirmation that  the plan.txt file is initialized.
     """
+    PLAN_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if PLAN_PATH.exists():
+        return "plan.md already exists, use rewrite, update or append tools"
+    PLAN_PATH.write_text(text, encoding = "utf-8")
+    return "plan.md created successfully."
 
 @tool
 def rewrite(query: str):
@@ -48,6 +71,11 @@ def rewrite(query: str):
     Returns:
         Confirmation that the plan was replaced.
     """
+    if not PLAN_PATH.exists():
+        return "plan.md does not exist, use create to initialize plan.md"
+    PLAN_PATH.write_text(query, encoding = "utf-8")
+    return "plan.md rewritten successfully."
+
 
 @tool
 def read_plan():
@@ -56,13 +84,23 @@ def read_plan():
     Returns:
         the current project plan.
     """
+    if not PLAN_PATH.exists():
+         return "plan.md does not exist, use create to initialize plan.md"
+    return PLAN_PATH.read_text(encoding = "utf-8")
 
-@tool 
 def summarize_plan():
-    """Use this to summarize the plan if the plan gets too long or is inefficient to read_plan()
+    """Use this tool to acquire a quick summary of the plan from plan.md file incase of confusions
+
     Returns:
-        Summary of plan file(plan.txt).
+        a summary of plan.md file
     """
+    plan = PLAN_PATH.read_text(encoding = "utf-8")
+    prompt = f"""
+    Summarize the following:
+    {plan}
+    """    
+    return llm.invoke(prompt)
+
 @tool
 def update_plan(instruction: str):
     """
@@ -81,3 +119,18 @@ def update_plan(instruction: str):
     Returns:
         Confirmation that the requested changes were applied.
     """
+    plan = PLAN_PATH.read_text(encoding= "utf-8")
+
+    prompt = f"""
+    Current plan:
+    {plan}
+
+    Instructions:
+    {instruction}
+
+    Rewrite only the necessary sections of plan and preserve everything else."""
+    
+    updated_plan = llm.invoke(prompt)
+
+    PLAN_PATH.write_text(updated_plan, encoding= "utf-8")
+    return "plan.md updated succesfully."
