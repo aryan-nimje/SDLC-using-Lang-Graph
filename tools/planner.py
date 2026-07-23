@@ -94,12 +94,15 @@ def summarize_plan():
     Returns:
         a summary of plan.md file
     """
+    if not PLAN_PATH.exists():
+        return "plan.md  does not exist, use  create to  initialize plan.md."
+
     plan = PLAN_PATH.read_text(encoding = "utf-8")
     prompt = f"""
     Summarize the following:
     {plan}
     """    
-    return llm.invoke(prompt)
+    return llm.invoke(prompt).content
 
 @tool
 def update_plan(instruction: str):
@@ -119,6 +122,9 @@ def update_plan(instruction: str):
     Returns:
         Confirmation that the requested changes were applied.
     """
+    if not PLAN_PATH.exists():
+            return "plan.md  does not exist, use  create to  initialize plan.md."
+
     plan = PLAN_PATH.read_text(encoding= "utf-8")
 
     prompt = f"""
@@ -132,5 +138,5 @@ def update_plan(instruction: str):
     
     updated_plan = llm.invoke(prompt)
 
-    PLAN_PATH.write_text(updated_plan, encoding= "utf-8")
+    PLAN_PATH.write_text(updated_plan.content, encoding= "utf-8")
     return "plan.md updated succesfully."
