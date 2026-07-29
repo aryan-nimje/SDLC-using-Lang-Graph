@@ -7,35 +7,19 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.8,
+    temperature = 0.8
 
 )
 
-DESIGN_PATH = Path("workspace/design.md")
+IMPLEMENTATION_PATH = Path("workspace/")
 
 @tool
-def create(text:str):
-    """Creates a new project designing document (design.md) 
-
-    Use this tool only when no design exists.
-    This tool initializes the project designing document that all later SDLC agents refer to.
-
-    Do not use  when design already exists use rewrite or append.
-    Args:
-        text: a well structured text that defines whether the application will be monolithic or divided into 
-            microservices. Informs about the modules/dependencies used in the application development
-            and when the application is working, also how these modules are related/connected
-            to each other. And finally which database soultion the application will require if required.
-            And also how system connects/integrates with external apis or softwares if any used 
-    Returns:
-        confirmation that the design.md file is initialized.
+def create_file(path: str, code: str):
     """
-    DESIGN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    """
+    IMPLEMENTATION_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    if DESIGN_PATH.exists():
-        return "design.md already exists, use rewrite, update or append tools"
-    DESIGN_PATH.write_text(text, encoding = "utf-8")
-    return "design.md created successfully."
+    
 
 @tool
 def rewrite(query: str):
@@ -147,4 +131,3 @@ def update_design(instruction: str):
 
     DESIGN_PATH.write_text(updated_plan.content, encoding= "utf-8")
     return "plan.md updated succesfully."
-
