@@ -5,129 +5,104 @@ from dotenv import load_dotenv
 load_dotenv()
 from langchain_openai import ChatOpenAI
 
+#Currently agent acts on it own and does not consider plan.md ir design.md files
+#further work will be done to take that into account.
+
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
     temperature = 0.8
-
 )
 
-IMPLEMENTATION_PATH = Path("workspace/")
+FOLDER_PATH = "agent_testing_grounds/workspace"
 
 @tool
-def create_file(path: str, code: str):
+def create_file(file: str, code: str):
     """
+    This tool initializes a file into the workspace.
+
+    Use this tool when, the user's prompt indicates to creating a project file,
+
+    DO NOT USE this tool when you need to update any file use update  instead.
+
+    Args: 
+        file: a string input which contains to parts, first the file name and second the
+                the extension of file. The variable should be passed in format of:
+                    name.extension
+                    where name.extension is the file created and written the code into
+            Ex: name.html -> for html  file
+                name.js -> for javascript file
+                name.css -> for css file
+                name.c -> for c file
+                name.cpp -> for c plus plus file
+                name.py -> for python file
+        
+        code: a string input which contains the implementation of user's request/prompt.
+
+    Returns:
+        Confirmation about file created.
     """
-    IMPLEMENTATION_PATH.parent.mkdir(parents=True, exist_ok=True)
+    os.makedirs(FOLDER_PATH, exist_ok=True)
+
+    full_path = os.path.join(FOLDER_PATH, file)
+
+    print(f"Writing code into {full_path}......")
+    with open(full_path, "w") as f:
+        f.write(code)
+    print(f"Code succesfully written into {full_path}")
+
+    return f"code written in {file} successfully."
+
+@tool
+def update_file(file: str, query: str):
+    """
+    This tool updates a file/section of a in the workspace.
+
+    Use this tool when, the user's prompt indicates to updating or adding
+    some new features or implementation into a project file,
+
+    DO NOT USE this tool when you need to create a file use create instead.
+
+    Args: 
+        file: a string input which contains to parts, first the file name and second the
+                the extension of file. The variable should be passed in format of:
+                    name.extension
+                    where name.extension file is the file needed to be updated.
+            Ex: name.html -> for html  file
+                name.js -> for javascript file
+                name.css -> for css file
+                name.c -> for c file
+                name.cpp -> for c plus plus file
+                name.py -> for python file
+        
+        query: a string input which precisely concludes what and how the user wants to update 
+                in the file.
+
+    Returns:
+        Confirmation about file updated.
+    """
+    full_path = os.path.join(FOLDER_PATH, file)
+    print(f"Updating {file}......")
+
+    with open(full_path, "r") as f:
+        contents = f.read()
+
+    prompt = f"""
+    Given this code: {contents}
+
+    Only edit/update parts/sections necessary to: {query}
+
+    and return while preserving other details.
+    """
+
+    updated = llm.invoke(prompt)
+
+    with open(full_path, "w") as f:
+        f.write(updated['messages'][-1].content)
+
+    print(f"File {file} updated sucesfully.")
+
 
     
 
-@tool
-def rewrite(query: str):
-    """Replaces the entire existing project design with a new version.
-
-    only use this tool when significant changes to the project's methodolgy and
-    logic for the whole application.
-
-    This tool deletes the previous contents of design.txt before writing
-    the new version.
-
-    Do NOT use this tool for small additions.
-    Use append() for incremental updates.
-    Use update() for updation of specific sections of design.md
-
-    Args:
-        query:The complete replacement project design.
-
-    Returns:
-        Confirmation that the plan was replaced.
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md does not exist, use create to initialize plan.md"
-    DESIGN_PATH.write_text(query, encoding = "utf-8")
-    return "design.md rewritten successfully."
-
-@tool
-def read_design():
-    """Use this when the designer has to understand current project state  before choosing  
-        between append, rewrite and create
-
-    Returns:
-        the current project design.
-    """
-    if not DESIGN_PATH.exists():
-         return "design.md does not exist, use create to initialize design.md"
-    return DESIGN_PATH.read_text(encoding = "utf-8")
-
-@tool
-def append(query: str):
-    """Appends new information to the project design without modifying or removing the existing content.
-
-        Use this tool when project plan already exists and new development logic should be added to better the design.
-
-        Do Not Use this tool when existing sections of plan need to be modified or removed, Use update() instead.
-    Args:
-        query: an input that will be appended onto the design leaving the rest untouched.
-    Returns:
-        confirmation that the new query was succesfully appended onto design.md
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md does not exist, use create to initialize plan.md"
-    with open(DESIGN_PATH, "a") as f:
-        f.write("\n\n")
-        f.write(query)
-    return "query appended succesfully/"
-
-@tool
-def summarize_design():
-    """Use this tool to acquire a quick summary of the design from deisgn.md file 
-    incase of confusions
-
-    Returns:
-        a summary of design.md file
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md  does not exist, use  create to  initialize design.md."
-
-    design = DESIGN_PATH.read_text(encoding = "utf-8")
-    prompt = f"""
-    Summarize the following:
-    {design}
-    """    
-    return llm.invoke(prompt).content
-
-@tool
-def update_design(instruction: str):
-    """
-    Updates only the relevant portions of the existing project design while
-    preserving all unrelated content.
-
-    Use this tool when specific sections of the project design need to be
-    modified, corrected, or replaced without rewriting the entire document.
-
-    Do NOT use this tool for adding entirely new information (use append)
-    or replacing the entire plan (use rewrite).
-
-    Args:
-        instruction: A description of the desired modification.
-
-    Returns:
-        Confirmation that the requested changes were applied.
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md  does not exist, use  create to  initialize design.md."
-
-    design = DESIGN_PATH.read_text(encoding= "utf-8")
-
-    prompt = f"""
-    Current plan:
-    {design}
-
-    Instructions:
-    {instruction}
-
-    Rewrite only the necessary sections of plan and preserve everything else."""
     
-    updated_plan = llm.invoke(prompt)
 
-    DESIGN_PATH.write_text(updated_plan.content, encoding= "utf-8")
-    return "plan.md updated succesfully."
