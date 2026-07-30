@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.8,
+    temperature = 0.8
 )
 
 PLAN_PATH = Path("workspace/plan.md")

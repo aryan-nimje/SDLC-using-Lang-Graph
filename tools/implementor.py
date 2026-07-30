@@ -10,10 +10,9 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.8
-)
+    temperature = 0.8)
 
-FOLDER_PATH = "agent_testing_grounds/workspace"
+FOLDER_PATH = "workspace"
 
 @tool
 def create_file(file: str, code: str):
@@ -23,6 +22,10 @@ def create_file(file: str, code: str):
     Use this tool when, the user's prompt indicates to creating a project file,
 
     DO NOT USE this tool when you need to update any file use update  instead.
+
+    There is no limit to making files. You may make any number of files as long 
+    as it satisfies the user's request just  make sure they are well structured and dont have 
+    similar named  and are integrated perfectly
 
     Args: 
         file: a string input which contains to parts, first the file name and second the
@@ -86,20 +89,27 @@ def update_file(file: str, query: str):
     with open(full_path, "r") as f:
         contents = f.read()
 
-    prompt = f"""
-    Given this code: {contents}
+    updated = llm.invoke(
+    f"""
+    You are editing an existing source file.
 
-    Only edit/update parts/sections necessary to: {query}
+    Return ONLY the complete updated file contents.
+    Do not use markdown.
+    Do not wrap the code in ``` fences.
 
-    and return while preserving other details.
+    Current file:
+    {contents}
+
+    Requested change:
+    {query}
     """
-
-    updated = llm.invoke(prompt)
+    )
 
     with open(full_path, "w") as f:
-        f.write(updated['messages'][-1].content)
+        f.write(updated.content)
 
     print(f"File {file} updated sucesfully.")
+    return f"File {file} updated successfully."
 
 
     

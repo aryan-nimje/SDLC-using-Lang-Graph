@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.8,
+    temperature = 0.8
 
 )
 
@@ -109,7 +109,9 @@ def summarize_design():
     Summarize the following:
     {design}
     """    
-    return llm.invoke(prompt).content
+
+    response = llm.invoke(prompt)
+    return response['messages'][-1].content
 
 @tool
 def update_design(instruction: str):
@@ -146,5 +148,6 @@ def update_design(instruction: str):
     updated_plan = llm.invoke(prompt)
 
     DESIGN_PATH.write_text(updated_plan.content, encoding= "utf-8")
+    
     return "plan.md updated succesfully."
 
