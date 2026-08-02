@@ -1,0 +1,32 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.loading {
+  font-size: 18px;
+  color: #666;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}

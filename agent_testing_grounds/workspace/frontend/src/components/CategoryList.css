@@ -1,0 +1,18 @@
+.category-list {
+  list-style: none;
+  padding: 0;
+  max-width: 200px;
+}
+
+.category-list li {
+  padding: 10px;
+  background-color: white;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.category-list li:hover {
+  background-color: #e9ecef;
+}

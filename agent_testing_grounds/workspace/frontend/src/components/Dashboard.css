@@ -1,0 +1,25 @@
+.dashboard {
+  padding-left: 220px;
+}
+
+.dashboard-cards {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  flex: 1;
+  text-align: center;
+}
+
+.recent-activity {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}

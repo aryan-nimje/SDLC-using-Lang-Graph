@@ -1,0 +1,32 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: #343a40;
+  color: white;
+  height: 100vh;
+  padding-top: 20px;
+  position: fixed;
+}
+
+.sidebar ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  padding: 10px 20px;
+}
+
+.sidebar ul li:hover {
+  background-color: #495057;
+  cursor: pointer;
+}
+
+.sidebar ul li a {
+  color: white;
+  display: block;
+}
