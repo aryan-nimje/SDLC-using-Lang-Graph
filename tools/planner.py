@@ -10,7 +10,7 @@ llm = ChatOpenAI(
     temperature = 0.8
 )
 
-PLAN_PATH = Path("workspace/plan.md")
+PLAN_PATH = Path("workspace/artifacts/")
 
 @tool
 def append(query: str):
@@ -33,9 +33,9 @@ def append(query: str):
 
 @tool
 def create(text:str):
-    """Creates a new project planning document (plan.md)
+    """Creates a new project document (plan.md or test.txt)
 
-    Use this tool only when no plan exists.
+    Use this tool only when no plan and no test document exists.
     This tool initializes the project planning document that all later SDLC agents refer to.
 
     Do not use  when plan already exists use rewrite or append.
