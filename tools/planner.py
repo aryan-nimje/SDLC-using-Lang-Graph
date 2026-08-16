@@ -22,29 +22,30 @@ llm = ChatOpenAI(
     temperature = 0.8
 )
 
-PLAN_PATH = Path("workspace/artifacts/")
+ARTIFACTS_PATH = "workspace/artifacts"
 
 @tool
 def append(query: str):
-    """Appends new information to the project plan without modifying or removing the existing content.
+    """Appends new information to the project plan or test without modifying or removing the existing content.
 
-        Use this tool when project plan already exists and new goals, requirements, risks, assumptions, milestones or implementation details need to be added
+        Use this tool when project plan or test already exists and new goals, requirements, risks, assumptions, milestones or 
+        implementation details or test parameters need to be added
 
-        Do Not Use this tool when existing sections of plan need to be modified or removed, Use rewrite instead.
+        Do Not Use this tool when existing sections of plan or test need to be modified or removed, Use update instead.
     Args:
         query: an input that will be appended onto the plan leaving the rest untouched.
     Returns:
         confirmation that the new query was succesfully appended onto plan.
     """
-    if not PLAN_PATH.exists():
-        return "plan.md does not exist, use create to initialize plan.md"
-    with open(PLAN_PATH, "a") as f:
+    if not ARTIFACTS_PATH.exists():
+        return "plan.md or does not exist, use create to initialize plan.md"
+    with open(ARTIFACTS_PATH, "a") as f:
         f.write("\n\n")
         f.write(query)
     return "query appended succesfully/"
 
 @tool
-def create(text:str):
+def create(text:str, file: str):
     """Creates a new project document (plan.md or test.txt)
 
     Use this tool only when no plan and no test document exists.
@@ -52,16 +53,24 @@ def create(text:str):
 
     Do not use  when plan already exists use rewrite or append.
     Args:
-        text: a thorough input that maps out the goals, risks and methodology for project developement
+        text: a thorough input that maps out the goals, risks and methodology for project developement in case of plan.md,
+                and a through input stating the test parameters for the application which it should pass which may be technical
+                and logical.
+        file: a string input either plan.md or test.md
     Returns:
-        confirmation that  the plan.txt file is initialized.
+        confirmation that the plan.md or test.md file is initialized.
     """
-    PLAN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    os.makedirs(ARTIFACTS_PATH, exist_ok=True)
 
-    if PLAN_PATH.exists():
-        return "plan.md already exists, use rewrite, update or append tools"
-    PLAN_PATH.write_text(text, encoding = "utf-8")
-    return "plan.md created successfully."
+    file = os.path.normpath(file)
+    full_path = os.path.join(ARTIFACTS_PATH, file)
+
+    print(f"Creating {file}......")
+    with open(full_path, "w") as f:
+        f.write(text)
+        print(f"Successfully written into {file}.")
+    return f"Text successfully written into {file}."
+
 
 @tool
 def rewrite(query: str):

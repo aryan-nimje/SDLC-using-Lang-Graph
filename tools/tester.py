@@ -4,6 +4,23 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_openai import ChatOpenAI
+from typing import Annotated, TypedDict
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import tools_condition
+from langgraph.checkpoint.memory import MemorySaver
+
+memory = MemorySaver()
+config = {"configurable": {"thread_id" : "1"}}
+
+class State(TypedDict):
+    messages : Annotated[list, add_messages]
+
+llm = ChatOpenAI(
+    model = "gpt-4.1-mini",
+    temperature = 0.1
+    )
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
@@ -82,6 +99,32 @@ def critique_file(file: str):
     print("Test results updated successfully.")
 
     return "Test results updates in workspace\artifacts\test_results.txt successfuly."
+
+test_tools = [critique_file, read_workspace]
+
+test = llm.bind_tools(tools = test_tools)
+
+def testing_agent(state:State):
+    response = test.invoke(state["messages"])
+    return {"messages": [response]}
+
+graph_builder = StateGraph(State)
+
+graph_builder.add_node("Tester",  testing_agent)
+graph_builder.add_node("tools", ToolNode(tools = test_tools))
+
+graph_builder.add_edge(START, "Tester")
+graph_builder.add_conditional_edges(
+    "Tester",
+    tools_condition
+)
+graph_builder.add_edge("tools", "Tester")
+
+tester = graph_builder.compile(memory)
+
+def testing(state:State):
+    response = tester.invoke(state["messages"])
+    return response["messages"][-1].content
 
 
     

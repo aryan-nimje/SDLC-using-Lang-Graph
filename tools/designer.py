@@ -4,6 +4,19 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_openai import ChatOpenAI
+from typing import Annotated, TypedDict
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import tools_condition
+from langgraph.checkpoint.memory import MemorySaver
+
+memory = MemorySaver()
+config = {"configurable": {"thread_id" : "1"}}
+
+class State(TypedDict):
+    messages : Annotated[list, add_messages]
+
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
@@ -151,3 +164,28 @@ def update_design(instruction: str):
     
     return "plan.md updated succesfully."
 
+design_tools = [create, append, rewrite, summarize_design, update_design, read_design]
+
+designer = llm.bind_tools(tools = design_tools)
+
+def designing_agent(state:State):
+    response = designer.invoke(state["messages"])
+    return {"messages": [response]}
+
+graph_builder = StateGraph(State)
+
+graph_builder.add_node("Designer",  designing_agent)
+graph_builder.add_node("tools", ToolNode(tools = design_tools))
+
+graph_builder.add_edge(START, "Designer")
+graph_builder.add_conditional_edges(
+    "Designer",
+    tools_condition
+)
+graph_builder.add_edge("tools", "Designer")
+
+designer = graph_builder.compile(memory)
+
+def designing(state:State):
+    response = designer.invoke(state["messages"])
+    return response["messages"][-1].content
