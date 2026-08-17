@@ -10,6 +10,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+from tools.utils import create_file, read_file, read_workspace, update_file
 
 memory = MemorySaver()
 config = {"configurable": {"thread_id" : "1"}}
@@ -19,13 +20,13 @@ class State(TypedDict):
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.8
+    temperature = 0.6
 )
 
 ARTIFACTS_PATH = "workspace/artifacts"
 
 @tool
-def append(query: str):
+def append(query: str, file: str):
     """Appends new information to the project plan or test without modifying or removing the existing content.
 
         Use this tool when project plan or test already exists and new goals, requirements, risks, assumptions, milestones or 
@@ -34,135 +35,72 @@ def append(query: str):
         Do Not Use this tool when existing sections of plan or test need to be modified or removed, Use update instead.
     Args:
         query: an input that will be appended onto the plan leaving the rest untouched.
+        file: either plan.md incase of adding goals, acheivements, risks, milestones etc. 
+                or test.md incase of additions to testing parameters
     Returns:
         confirmation that the new query was succesfully appended onto plan.
     """
-    if not ARTIFACTS_PATH.exists():
-        return "plan.md or does not exist, use create to initialize plan.md"
-    with open(ARTIFACTS_PATH, "a") as f:
+    file = os.path.normpath(file)
+    full_path = os.path.join(ARTIFACTS_PATH, file)
+    if not full_path.exists():
+        return f"{file} does not exist, use create_file to initialize {file}."
+    with open(full_path, "a") as f:
         f.write("\n\n")
         f.write(query)
     return "query appended succesfully/"
 
 @tool
-def create(text:str, file: str):
-    """Creates a new project document (plan.md or test.txt)
-
-    Use this tool only when no plan and no test document exists.
-    This tool initializes the project planning document that all later SDLC agents refer to.
-
-    Do not use  when plan already exists use rewrite or append.
-    Args:
-        text: a thorough input that maps out the goals, risks and methodology for project developement in case of plan.md,
-                and a through input stating the test parameters for the application which it should pass which may be technical
-                and logical.
-        file: a string input either plan.md or test.md
-    Returns:
-        confirmation that the plan.md or test.md file is initialized.
-    """
-    os.makedirs(ARTIFACTS_PATH, exist_ok=True)
-
-    file = os.path.normpath(file)
-    full_path = os.path.join(ARTIFACTS_PATH, file)
-
-    print(f"Creating {file}......")
-    with open(full_path, "w") as f:
-        f.write(text)
-        print(f"Successfully written into {file}.")
-    return f"Text successfully written into {file}."
-
-
-@tool
-def rewrite(query: str):
-    """Replaces the entire existing project plan with a new version.
+def rewrite(query: str, file: str):
+    """Replaces the entire existing project plan  or test with a new version.
 
     Use this tool when significant changes to the project's goals,
     scope, requirements, architecture, or implementation strategy
-    make the existing plan obsolete.
+    make the existing plan  or the test obsolete.
 
-    This tool deletes the previous contents of plan.txt before writing
+    This tool deletes the previous contents of plan.md and test.md before writing
     the new version.
 
     Do NOT use this tool for small additions.
     Use append() for incremental updates.
 
     Args:
-        query:The complete replacement project plan.
+        query:The complete replacement project plan in case of rewriting plan.md or testing process  in case of rewriting test.md.
+        file: a string input either plan.md or test.md
 
     Returns:
         Confirmation that the plan was replaced.
     """
-    if not PLAN_PATH.exists():
-        return "plan.md does not exist, use create to initialize plan.md"
-    PLAN_PATH.write_text(query, encoding = "utf-8")
-    return "plan.md rewritten successfully."
+    os.makedirs(ARTIFACTS_PATH, exist_ok=True)
+    
+    file = os.path.normpath(file)
+    full_path = os.path.join(ARTIFACTS_PATH, file)
+    
+    print(f"Rewriting {file}......")
+    with open(full_path, "w") as f:
+        f.write(query)
+        print(f"Successfully written into {file}.")
+    return f"Text successfully rewritten into {file}."
 
 
-@tool
-def read_plan():
-    """ Use this when the planner has to understand current project state  before choosing  between append, rewrite and create
-
-    Returns:
-        the current project plan.
-    """
-    if not PLAN_PATH.exists():
-         return "plan.md does not exist, use create to initialize plan.md"
-    return PLAN_PATH.read_text(encoding = "utf-8")
-
-def summarize_plan():
-    """Use this tool to acquire a quick summary of the plan from plan.md file incase of confusions
+def summarize(file: str):
+    """Use this tool to acquire a quick summary of the plan from plan.md or test parameters from test.md file incase of confusions
 
     Returns:
         a summary of plan.md file
     """
-    if not PLAN_PATH.exists():
-        return "plan.md  does not exist, use  create to  initialize plan.md."
+    file = os.path.normpath(file)
+    full_path = os.path.join(ARTIFACTS_PATH, file)
+    if not full_path.exists():
+        return f"{file} does not exist, use  create_file to  initialize {file}"
 
-    plan = PLAN_PATH.read_text(encoding = "utf-8")
+    plan = full_path.read_text(encoding = "utf-8")
     prompt = f"""
     Summarize the following:
     {plan}
     """    
     return llm.invoke(prompt).content
 
-@tool
-def update_plan(instruction: str):
-    """
-    Updates only the relevant portions of the existing project plan while
-    preserving all unrelated content.
-
-    Use this tool when specific sections of the project plan need to be
-    modified, corrected, or replaced without rewriting the entire document.
-
-    Do NOT use this tool for adding entirely new information (use append)
-    or replacing the entire plan (use rewrite).
-
-    Args:
-        instruction: A description of the desired modification.
-
-    Returns:
-        Confirmation that the requested changes were applied.
-    """
-    if not PLAN_PATH.exists():
-            return "plan.md  does not exist, use  create to  initialize plan.md."
-
-    plan = PLAN_PATH.read_text(encoding= "utf-8")
-
-    prompt = f"""
-    Current plan:
-    {plan}
-
-    Instructions:
-    {instruction}
-
-    Rewrite only the necessary sections of plan and preserve everything else."""
-    
-    updated_plan = llm.invoke(prompt)
-
-    PLAN_PATH.write_text(updated_plan.content, encoding= "utf-8")
-    return "plan.md updated succesfully."
-
-plan_tools = [update_plan, create, append, rewrite, read_plan, summarize_plan]
+plan_tools = [update_file, create_file, append, rewrite, read_file, summarize, read_workspace]
 
 planner = llm.bind_tools(tools = plan_tools)
 
@@ -184,8 +122,13 @@ graph_builder.add_edge("tools", "Planner")
 
 planner = graph_builder.compile(memory)
 
+system_prompt = """You are the planning agent for this application: You need to initialize two files, plan.md and test.md if not already initialized,
+                    plan.md contains the goals, acheivements, milestones, potential risks and all that matters in planning of application.
+                    test.md contains the test parameters as the tester of the application being built.
+                    The application description goes as: """
+
 def planning(state:State):
-    response = planner.invoke(state["messages"])
+    response = planner.invoke(system_prompt + state["messages"])
     return response["messages"][-1].content
 
 

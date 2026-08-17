@@ -96,12 +96,78 @@ def read_file(file:str):
 
     return content
 
-def read_workspace():
+@tool
+def read_workspace(folder: str = "workspace"):
     """
-        Use this function when you want to read the workspace, about which files are present in the workspace and which are not.
-
+        Use this function when you want to read the workspace, about which files/folder are present in the workspace and which are not.
+        Args:
+            If workspace is to be read, DO NOT PASS any arguments,
+            If a specific folder is to read in  workspace, PASS IN the name of said folder as argument
         Returns:
             names of files present in the workspace with their extensions.
     """
-    folder = "workspace"
-    return os.listdir(folder)
+    print(f"Reading {folder}.......")
+    if os.path.exists(folder):
+        contents = os.listdir(folder)
+        print(f"Directory read succesfully.")
+    else:
+        return "No such directory exists"
+    return contents
+
+@tool
+def update_file(file: str, query: str):
+    """
+    This tool updates a file/section of a in the workspace.
+
+    Use this tool when, the user's prompt indicates to updating or adding
+    some new features or implementation into a project files,
+
+    DO NOT USE this tool when you need to create a file use create instead.
+
+    Args: 
+        file: a string input which contains to parts, first the file name and second the
+                the extension of file. And while using this tool to access plan.md, test.md, hld.md, lld.md and requirements.md 
+                the file argument should be: artifacts\file.extension..The variable should be passed in format of:
+                    name.extension
+                    where name.extension file is the file needed to be updated.
+            Ex: name.html -> for html  file
+                name.js -> for javascript file
+                name.css -> for css file
+                name.c -> for c file
+                name.cpp -> for c plus plus file
+                name.py -> for python file
+        
+        query: a string input which precisely concludes what and how the user wants to update 
+                in the file.
+
+    Returns:
+        Confirmation about file updated.
+    """
+    full_path = os.path.join(FOLDER_PATH, file)
+    print(f"Updating {file}......")
+
+    with open(full_path, "r") as f:
+        contents = f.read()
+
+    updated = llm.invoke(
+    f"""
+    You are editing an existing source file.
+
+    Return ONLY the complete updated file contents.
+    Do not use markdown.
+    Do not wrap the code in ``` fences.
+
+    Current file:
+    {contents}
+
+    Requested change:
+    {query}
+    """
+    )
+
+    with open(full_path, "w") as f:
+        f.write(updated.content)
+
+    print(f"File {file} updated sucesfully.")
+    return f"File {file} updated successfully."
+
