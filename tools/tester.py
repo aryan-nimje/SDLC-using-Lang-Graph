@@ -4,7 +4,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_openai import ChatOpenAI
-from typing import Annotated, TypedDict
+from typing import Annotated 
+from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -19,13 +20,7 @@ class State(TypedDict):
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.1
-    )
-
-llm = ChatOpenAI(
-    model = "gpt-4.1-mini",
-    temperature = 0.1
-)
+    temperature = 0.1    )
 
 TEST_RESULTS = "workspace\artifacts\test_results.md"
 TEST_PATH = "workspace\artifacts\test.md"
@@ -120,11 +115,11 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("tools", "Tester")
 
-tester = graph_builder.compile(memory)
+tester_agent = graph_builder.compile(memory)
 
 def testing(state:State):
-    response = tester.invoke(state["messages"])
-    return response["messages"][-1].content
+    response = tester_agent.invoke(state["messages"])
+    return {"messages": [response["messages"][-1].content]}
 
 
     

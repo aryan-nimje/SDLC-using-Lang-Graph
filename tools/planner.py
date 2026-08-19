@@ -11,6 +11,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from tools.utils import create_file, read_file, read_workspace, update_file
+from langchain_core.messages import SystemMessage
 
 memory = MemorySaver()
 config = {"configurable": {"thread_id" : "1"}}
@@ -120,15 +121,17 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("tools", "Planner")
 
-planner = graph_builder.compile(memory)
+planner_agent = graph_builder.compile(memory)
 
-system_prompt = """You are the planning agent for this application: You need to initialize two files, plan.md and test.md if not already initialized,
-                    plan.md contains the goals, acheivements, milestones, potential risks and all that matters in planning of application.
-                    test.md contains the test parameters as the tester of the application being built.
-                    The application description goes as: """
+system_prompt = "You are the planning agent for this application: You need to initialize two files, plan.md and test.md if not already initialized, plan.md contains the goals, acheivements, milestones, potential risks and all that matters in planning of application. test.md contains the test parameters as the tester of the application being built. The application description goes as: "
 
-def planning(state:State):
-    response = planner.invoke(system_prompt + state["messages"])
-    return response["messages"][-1].content
+def planning(state: State):
+    messages = [
+        SystemMessage(content=system_prompt),
+        *state["messages"]
+    ]
 
+    response = planner_agent.invoke({"messages": messages})
+
+    return {"messages": [response["messages"][-1]]}
 

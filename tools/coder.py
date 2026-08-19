@@ -2,13 +2,15 @@ from langchain_core.tools import tool
 from pathlib import Path
 import os
 from langchain_openai import ChatOpenAI
-from typing import Annotated, TypedDict
+from typing import Annotated 
+from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from tools.tester import testing
+from langchain_core.messages import SystemMessage
 
 memory = MemorySaver()
 config = {"configurable": {"thread_id" : "1"}}
@@ -18,8 +20,7 @@ class State(TypedDict):
 
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
-    temperature = 0.1
-    )
+    temperature = 0.1    )
 
 FOLDER_PATH = "workspace"
 
@@ -107,7 +108,7 @@ def update_file(file: str, query: str):
     You are editing an existing source file.
 
     Return ONLY the complete updated file contents.
-    Do not use markdown.
+    Do not use markdown in case of code files.
     Do not wrap the code in ``` fences.
 
     Current file:
@@ -166,7 +167,7 @@ def read_file(file:str):
 
     return content
 
-coder_tools = [create_file, read_file, read_workspace, update_file, testing]
+coder_tools = [create_file, read_file, read_workspace, update_file]
 
 coder = llm.bind_tools(tools = coder_tools)
 
@@ -186,12 +187,19 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("tools", "Coder")
 
-designer = graph_builder.compile(memory)
+coder_agent = graph_builder.compile(memory)
 
-def designing(state:State):
-    response = designer.invoke(state["messages"])
-    return response["messages"][-1].content
+system_prompt = "You are the coding agent for the application; You need to code out the whole  project once you  have read files: plan.md, hld.md, lld.md, and requirements.txt, Do not just jump into writing the code read the plan and design files first. And after you are done coding out the project use the testing tool to  test the code base for any inconsistensies and errors, and continue the calling of testing agent after you till the testing tools passes all the test and gives a green flag on all test."
 
+def coding(state:State):
+    messages = [
+        SystemMessage(content=system_prompt),
+                *state["messages"]
+    ]
+
+    response = coder_agent.invoke({"messages": messages})
+
+    return {"messages": [response["messages"][-1]]}
 
 
 

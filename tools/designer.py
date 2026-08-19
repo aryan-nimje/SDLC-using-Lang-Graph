@@ -10,6 +10,8 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
 from langgraph.checkpoint.memory import MemorySaver
+from tools.utils import create_file, read_file, read_workspace, update_file
+from langchain_core.messages import SystemMessage
 
 memory = MemorySaver()
 config = {"configurable": {"thread_id" : "1"}}
@@ -21,43 +23,18 @@ class State(TypedDict):
 llm = ChatOpenAI(
     model = "gpt-4.1-mini",
     temperature = 0.8
-
 )
 
-DESIGN_PATH = Path("workspace/design.md")
+DESIGN_PATH = "workspace"
 
 @tool
-def create(text:str):
-    """Creates a new project designing document (design.md) 
-
-    Use this tool only when no design exists.
-    This tool initializes the project designing document that all later SDLC agents refer to.
-
-    Do not use  when design already exists use rewrite or append.
-    Args:
-        text: a well structured text that defines whether the application will be monolithic or divided into 
-            microservices. Informs about the modules/dependencies used in the application development
-            and when the application is working, also how these modules are related/connected
-            to each other. And finally which database soultion the application will require if required.
-            And also how system connects/integrates with external apis or softwares if any used 
-    Returns:
-        confirmation that the design.md file is initialized.
-    """
-    DESIGN_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    if DESIGN_PATH.exists():
-        return "design.md already exists, use rewrite, update or append tools"
-    DESIGN_PATH.write_text(text, encoding = "utf-8")
-    return "design.md created successfully."
-
-@tool
-def rewrite(query: str):
-    """Replaces the entire existing project design with a new version.
+def rewrite(query: str, file: str):
+    """Replaces the entire existing project's design details which include hld.md, lld.md, requirements.txt with a new version.
 
     only use this tool when significant changes to the project's methodolgy and
     logic for the whole application.
 
-    This tool deletes the previous contents of design.txt before writing
+    This tool deletes the previous contents of file chosen before writing
     the new version.
 
     Do NOT use this tool for small additions.
@@ -65,57 +42,34 @@ def rewrite(query: str):
     Use update() for updation of specific sections of design.md
 
     Args:
+        file: either hld.md, lld.md, requirements.txt
         query:The complete replacement project design.
 
     Returns:
         Confirmation that the plan was replaced.
     """
-    if not DESIGN_PATH.exists():
-        return "design.md does not exist, use create to initialize plan.md"
-    DESIGN_PATH.write_text(query, encoding = "utf-8")
-    return "design.md rewritten successfully."
+    file = os.path.normpath(file)
+    full_path = os.path.join(DESIGN_PATH, file)
+    if not full_path.exists():
+        return f"{file} does not exist, use create to initialize {file}."
+    full_path.write_text(query, encoding = "utf-8")
+    return f"{file} rewritten successfully."
+
 
 @tool
-def read_design():
-    """Use this when the designer has to understand current project state  before choosing  
-        between append, rewrite and create
+def summarize_design(file: str):
+    """Use this tool to acquire a quick summary of the design from hld.md, lld.md, requirements.txt file 
+            incase of confusions
 
-    Returns:
-        the current project design.
-    """
-    if not DESIGN_PATH.exists():
-         return "design.md does not exist, use create to initialize design.md"
-    return DESIGN_PATH.read_text(encoding = "utf-8")
-
-@tool
-def append(query: str):
-    """Appends new information to the project design without modifying or removing the existing content.
-
-        Use this tool when project plan already exists and new development logic should be added to better the design.
-
-        Do Not Use this tool when existing sections of plan need to be modified or removed, Use update() instead.
     Args:
-        query: an input that will be appended onto the design leaving the rest untouched.
-    Returns:
-        confirmation that the new query was succesfully appended onto design.md
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md does not exist, use create to initialize plan.md"
-    with open(DESIGN_PATH, "a") as f:
-        f.write("\n\n")
-        f.write(query)
-    return "query appended succesfully/"
-
-@tool
-def summarize_design():
-    """Use this tool to acquire a quick summary of the design from deisgn.md file 
-    incase of confusions
-
+        file: the file name you want the summary of which can be from hld.md, lld.md, requirements.txt.
     Returns:
         a summary of design.md file
     """
-    if not DESIGN_PATH.exists():
-        return "design.md  does not exist, use  create to  initialize design.md."
+    file = os.path.normpath(file)
+    full_path = os.path.joinpath(DESIGN_PATH, file)
+    if not full_path.exists():
+        return f"{file}  does not exist, use  create to  initialize {file}."
 
     design = DESIGN_PATH.read_text(encoding = "utf-8")
     prompt = f"""
@@ -126,45 +80,8 @@ def summarize_design():
     response = llm.invoke(prompt)
     return response['messages'][-1].content
 
-@tool
-def update_design(instruction: str):
-    """
-    Updates only the relevant portions of the existing project design while
-    preserving all unrelated content.
 
-    Use this tool when specific sections of the project design need to be
-    modified, corrected, or replaced without rewriting the entire document.
-
-    Do NOT use this tool for adding entirely new information (use append)
-    or replacing the entire plan (use rewrite).
-
-    Args:
-        instruction: A description of the desired modification.
-
-    Returns:
-        Confirmation that the requested changes were applied.
-    """
-    if not DESIGN_PATH.exists():
-        return "design.md  does not exist, use  create to  initialize design.md."
-
-    design = DESIGN_PATH.read_text(encoding= "utf-8")
-
-    prompt = f"""
-    Current plan:
-    {design}
-
-    Instructions:
-    {instruction}
-
-    Rewrite only the necessary sections of plan and preserve everything else."""
-    
-    updated_plan = llm.invoke(prompt)
-
-    DESIGN_PATH.write_text(updated_plan.content, encoding= "utf-8")
-    
-    return "plan.md updated succesfully."
-
-design_tools = [create, append, rewrite, summarize_design, update_design, read_design]
+design_tools = [create_file, rewrite, summarize_design, update_file, read_file]
 
 designer = llm.bind_tools(tools = design_tools)
 
@@ -184,8 +101,16 @@ graph_builder.add_conditional_edges(
 )
 graph_builder.add_edge("tools", "Designer")
 
-designer = graph_builder.compile(memory)
+designer_agent = graph_builder.compile(memory)
+
+prompt = "You are the designing agent for the software, you have to create hld.md -> containing high level design of the application, lld.md -> containing  the low level design of the application, and requirements.txt which inform the user about the modules and libraries used and should be used as pip install requirements.txt. The file hld.md, lld.md, requirements.txt should only be created after you have read or summarized the plan.md of the application (plan file name: plan.md, in workspace/artifacts). If hld.md, lld.md, requirements.txt are already created then ignore the above instructions and only rewrite the design files if the user explicitly states the need for it."
 
 def designing(state:State):
-    response = designer.invoke(state["messages"])
-    return response["messages"][-1].content
+    messages = [
+            SystemMessage(content=prompt),
+            *state["messages"]
+        ]
+    
+    response = designer_agent.invoke({"messages": messages})
+    
+    return {"messages": [response["messages"][-1]]}
